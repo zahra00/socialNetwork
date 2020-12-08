@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
+from .utils import get_random_code
+from django.template.defaultfilters import slugify
 
 
 class Profile(models.Model):
@@ -10,6 +12,7 @@ class Profile(models.Model):
     email = models.EmailField(max_length=200, blank=True)
     country = models.CharField(max_length=200, blank=True)
     avatar = models.ImageField(default="avatar.png", upload_to='avatars/')
+    # TODO: Test default avatar
 
     friends = models.ManyToManyField(User, blank=True, related_name='friends')
     slug = models.SlugField(unique=True, blank=True)
@@ -18,3 +21,16 @@ class Profile(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.created}"
+
+    def save(self, *args, **kwargs):
+        ex = False
+        if self.first_name and self.last_name:
+            to_slug = slugify(str(self.first_name) + " " + str(self.last_name))
+            ex = Profile.objects.filter(slug=to_slug).exist()
+            while ex:
+                to_slug = slugify(to_slug + " " + str(get_random_code()))
+                ex = Profile.objects.filter(slug=to_slug).exist()
+        else:
+            to_slug = slugify(self.user)
+            self.slug = to_slug
+            super().save(*args, **kwargs)
